@@ -448,7 +448,7 @@ export default function GamePage() {
     }, {} as Record<string, string>),
   });
 
-  const jitsiUrl = `https://meet.jit.si/${jitsiRoomName}#${configParams.toString()}`;
+  const jitsiUrl = `https://meet.pololabs.io/${jitsiRoomName}#${configParams.toString()}`;
 
   return (
     <div className="h-screen bg-[#0a1628] text-white flex overflow-hidden">
