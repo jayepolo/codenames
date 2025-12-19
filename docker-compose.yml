@@ -1,0 +1,42 @@
+version: '3.8'
+
+services:
+  codenames:
+    image: ghcr.io/jayepolo/codenames:latest
+    container_name: codenames
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+    networks:
+      - traefik
+    labels:
+      # Enable Traefik
+      - "traefik.enable=true"
+
+      # Docker network to use
+      - "traefik.docker.network=traefik"
+
+      # HTTP Router
+      - "traefik.http.routers.codenames.rule=Host(`codenames.yourdomain.com`)"
+      - "traefik.http.routers.codenames.entrypoints=websecure"
+      - "traefik.http.routers.codenames.tls=true"
+      - "traefik.http.routers.codenames.tls.certresolver=cloudflare"
+
+      # Service configuration
+      - "traefik.http.services.codenames.loadbalancer.server.port=3000"
+
+      # WebSocket support - important for Socket.io
+      - "traefik.http.routers.codenames.middlewares=websocket-headers"
+      - "traefik.http.middlewares.websocket-headers.headers.customrequestheaders.X-Forwarded-Proto=https"
+      - "traefik.http.middlewares.websocket-headers.headers.customrequestheaders.X-Forwarded-For="
+
+      # Optional: HTTP to HTTPS redirect
+      - "traefik.http.routers.codenames-http.rule=Host(`codenames.yourdomain.com`)"
+      - "traefik.http.routers.codenames-http.entrypoints=web"
+      - "traefik.http.routers.codenames-http.middlewares=redirect-to-https"
+      - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https"
+
+networks:
+  traefik:
+    external: true
