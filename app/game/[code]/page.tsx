@@ -141,11 +141,12 @@ export default function GamePage() {
       const currentWinId = `${gameState.winner}-${Date.now()}`;
 
       if (lastWin !== currentWinId.substring(0, currentWinId.lastIndexOf('-'))) {
-        setSessionScore(prev => ({
+        const winner = gameState.winner as 'red' | 'blue';
+        setSessionScore((prev: { red: number; blue: number }) => ({
           ...prev,
-          [gameState.winner]: prev[gameState.winner as 'red' | 'blue'] + 1
+          [winner]: prev[winner] + 1
         }));
-        localStorage.setItem(lastWinKey, gameState.winner);
+        localStorage.setItem(lastWinKey, winner);
       }
     }
   }, [gameState?.gameOver, gameState?.winner, gameCode]);
@@ -267,7 +268,7 @@ export default function GamePage() {
     console.log("CurrentPlayer:", currentPlayer);
 
     // Check if player is ready - cannot change teams if ready
-    if (gameState && (gameState.readyPlayers || []).includes(currentPlayer.id)) {
+    if (gameState && currentPlayer && (gameState.readyPlayers || []).includes(currentPlayer.id)) {
       alert("You must un-ready before changing teams");
       return;
     }
@@ -502,7 +503,7 @@ export default function GamePage() {
                               <div className="text-sm font-medium flex-1">{displayName}</div>
                               {/* Spymaster indicator (active phase) */}
                               {gameState.phase === "active" && p.role === "spymaster" && (
-                                <svg className="w-4 h-4 text-red-300 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20" title="Spymaster">
+                                <svg className="w-4 h-4 text-red-300 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20" aria-label="Spymaster">
                                   <path d="M10 12a2 2 0 100-4 2 2 0 000 4z"/>
                                   <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd"/>
                                 </svg>
@@ -547,7 +548,7 @@ export default function GamePage() {
                               <div className="text-sm font-medium flex-1">{displayName}</div>
                               {/* Spymaster indicator (active phase) */}
                               {gameState.phase === "active" && p.role === "spymaster" && (
-                                <svg className="w-4 h-4 text-blue-300 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20" title="Spymaster">
+                                <svg className="w-4 h-4 text-blue-300 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20" aria-label="Spymaster">
                                   <path d="M10 12a2 2 0 100-4 2 2 0 000 4z"/>
                                   <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd"/>
                                 </svg>
