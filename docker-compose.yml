@@ -18,7 +18,7 @@ services:
       - "traefik.docker.network=traefik"
 
       # HTTP Router
-      - "traefik.http.routers.codenames.rule=Host(`codenames.yourdomain.com`)"
+      - "traefik.http.routers.codenames.rule=Host(`codenames.pololabs.io`)"
       - "traefik.http.routers.codenames.entrypoints=websecure"
       - "traefik.http.routers.codenames.tls=true"
       - "traefik.http.routers.codenames.tls.certresolver=cloudflare"
@@ -32,7 +32,7 @@ services:
       - "traefik.http.middlewares.websocket-headers.headers.customrequestheaders.X-Forwarded-For="
 
       # Optional: HTTP to HTTPS redirect
-      - "traefik.http.routers.codenames-http.rule=Host(`codenames.yourdomain.com`)"
+      - "traefik.http.routers.codenames-http.rule=Host(`codenames.pololabs.io`)"
       - "traefik.http.routers.codenames-http.entrypoints=web"
       - "traefik.http.routers.codenames-http.middlewares=redirect-to-https"
       - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https"
