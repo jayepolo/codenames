@@ -31,6 +31,7 @@ export default function GamePage() {
   });
   const [chatInput, setChatInput] = useState("");
   const [clueInput, setClueInput] = useState("");
+  const [clueNumber, setClueNumber] = useState<number>(1);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   // Session scoring
@@ -237,6 +238,9 @@ export default function GamePage() {
 
     // Only allow clicks for the current team
     if (currentPlayer.team !== gameState.currentTeam) return;
+
+    // Don't allow clicking cards until a clue has been given
+    if (!gameState.clueGivenThisTurn) return;
 
     // Don't allow clicking revealed cards
     if (gameState.cards[cardIndex].revealed) return;
@@ -767,6 +771,35 @@ export default function GamePage() {
           </div>
         ) : gameState.phase === "active" ? (
           <>
+            {/* Current Clue Display */}
+            <div className="max-w-[90%] mx-auto mb-6">
+              {gameState.currentClue ? (
+                <div className={`${
+                  gameState.currentClue.team === "red"
+                    ? "bg-red-900 border-red-500"
+                    : "bg-blue-900 border-blue-500"
+                } bg-opacity-30 border-2 rounded-xl p-6 text-center`}>
+                  <p className="text-gray-300 text-sm font-medium mb-2">
+                    {gameState.currentClue.team === "red" ? "RED" : "BLUE"} TEAM CLUE
+                  </p>
+                  <p className={`${
+                    gameState.currentClue.team === "red" ? "text-red-400" : "text-blue-400"
+                  } text-4xl font-bold uppercase mb-1`}>
+                    {gameState.currentClue.word}
+                  </p>
+                  <p className="text-white text-6xl font-bold">
+                    {gameState.currentClue.number}
+                  </p>
+                </div>
+              ) : (
+                <div className="bg-gray-800 bg-opacity-50 border-2 border-gray-600 rounded-xl p-6 text-center">
+                  <p className="text-gray-400 text-lg">
+                    Waiting for {gameState.currentTeam === "red" ? "Red" : "Blue"} spymaster to give a clue...
+                  </p>
+                </div>
+              )}
+            </div>
+
             {/* Game Board */}
             <div className="grid grid-cols-5 gap-3 mb-6 max-w-[90%] mx-auto">
               {gameState.cards.map((card, index) => {
@@ -870,18 +903,27 @@ export default function GamePage() {
                       type="number"
                       min="0"
                       max="9"
+                      value={clueNumber}
+                      onChange={(e) => setClueNumber(parseInt(e.target.value) || 0)}
                       placeholder="#"
                       disabled={gameState.currentTeam !== currentPlayer.team}
                       className="w-20 bg-gray-800 text-white px-4 py-3 rounded-lg font-medium text-center focus:outline-none focus:ring-2 focus:ring-blue-500 border border-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
                     />
                     <button
                       onClick={() => {
-                        if (clueInput.trim() && gameState.currentTeam === currentPlayer.team) {
-                          // TODO: Emit clue to game state
+                        if (clueInput.trim() && clueNumber >= 0 && gameState.currentTeam === currentPlayer.team && socket) {
+                          socket.emit("give-clue", {
+                            gameId: gameCode,
+                            clue: {
+                              word: clueInput.trim(),
+                              number: clueNumber,
+                            },
+                          });
                           setClueInput("");
+                          setClueNumber(1);
                         }
                       }}
-                      disabled={!clueInput.trim() || gameState.currentTeam !== currentPlayer.team}
+                      disabled={!clueInput.trim() || clueNumber < 0 || gameState.currentTeam !== currentPlayer.team}
                       className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 disabled:from-gray-600 disabled:to-gray-700 disabled:cursor-not-allowed px-8 py-3 rounded-lg font-bold smooth-transition"
                     >
                       Give Clue

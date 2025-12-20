@@ -61,6 +61,8 @@ export function createNewGame(gameId: string): GameState {
       red: {},
       blue: {},
     },
+    currentClue: null,
+    clueGivenThisTurn: false,
   };
 }
 
@@ -179,6 +181,25 @@ export function endTurn(game: GameState): GameState {
   return {
     ...game,
     currentTeam: game.currentTeam === "red" ? "blue" : "red",
+    currentClue: null,
+    clueGivenThisTurn: false,
+  };
+}
+
+export function giveClue(game: GameState, clue: { word: string; number: number }): GameState {
+  if (game.phase !== "active" || game.gameOver) {
+    return game;
+  }
+
+  // Store the clue with the current team
+  return {
+    ...game,
+    currentClue: {
+      word: clue.word,
+      number: clue.number,
+      team: game.currentTeam,
+    },
+    clueGivenThisTurn: true,
   };
 }
 

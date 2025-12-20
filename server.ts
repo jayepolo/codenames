@@ -96,6 +96,15 @@ app.prepare().then(() => {
       }
     });
 
+    socket.on("give-clue", ({ gameId, clue }) => {
+      console.log(`Clue given in game ${gameId}:`, clue);
+      const updatedGame = gameManager.giveClue(gameId, clue);
+
+      if (updatedGame) {
+        io.to(gameId).emit("game-state", updatedGame);
+      }
+    });
+
     socket.on("reset-game", ({ gameId }) => {
       const updatedGame = gameManager.resetGame(gameId);
 

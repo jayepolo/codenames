@@ -5,6 +5,7 @@ import {
   removePlayer,
   revealCard,
   endTurn,
+  giveClue as giveClueLogic,
   assignPlayerRole,
   joinTeam as joinTeamLogic,
   assignSpymaster as assignSpymasterLogic,
@@ -77,6 +78,17 @@ class GameManager {
     }
 
     const updatedGame = endTurn(game);
+    this.games.set(gameId, updatedGame);
+    return updatedGame;
+  }
+
+  giveClue(gameId: string, clue: { word: string; number: number }): GameState | null {
+    const game = this.games.get(gameId);
+    if (!game) {
+      return null;
+    }
+
+    const updatedGame = giveClueLogic(game, clue);
     this.games.set(gameId, updatedGame);
     return updatedGame;
   }

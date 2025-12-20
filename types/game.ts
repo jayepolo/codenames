@@ -39,6 +39,8 @@ export interface GameState {
     red: { [voterId: string]: string };
     blue: { [voterId: string]: string };
   };
+  currentClue: ClueGiven | null;
+  clueGivenThisTurn: boolean;
 }
 
 export interface ClueGiven {
