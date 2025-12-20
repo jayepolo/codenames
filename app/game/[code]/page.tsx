@@ -778,22 +778,24 @@ export default function GamePage() {
                   gameState.currentClue.team === "red"
                     ? "bg-red-900 border-red-500"
                     : "bg-blue-900 border-blue-500"
-                } bg-opacity-30 border-2 rounded-xl p-6 text-center`}>
-                  <p className="text-gray-300 text-sm font-medium mb-2">
-                    {gameState.currentClue.team === "red" ? "RED" : "BLUE"} TEAM CLUE
+                } bg-opacity-30 border-2 rounded-lg px-6 py-3 flex items-center justify-center gap-4`}>
+                  <p className="text-gray-300 text-sm font-medium">
+                    {gameState.currentClue.team === "red" ? "RED" : "BLUE"} TEAM CLUE:
                   </p>
                   <p className={`${
                     gameState.currentClue.team === "red" ? "text-red-400" : "text-blue-400"
-                  } text-4xl font-bold uppercase mb-1`}>
+                  } text-3xl font-bold uppercase`}>
                     {gameState.currentClue.word}
                   </p>
-                  <p className="text-white text-6xl font-bold">
+                  <p className={`${
+                    gameState.currentClue.team === "red" ? "text-red-400" : "text-blue-400"
+                  } text-3xl font-bold`}>
                     {gameState.currentClue.number}
                   </p>
                 </div>
               ) : (
-                <div className="bg-gray-800 bg-opacity-50 border-2 border-gray-600 rounded-xl p-6 text-center">
-                  <p className="text-gray-400 text-lg">
+                <div className="bg-gray-800 bg-opacity-50 border-2 border-gray-600 rounded-lg px-6 py-3 text-center">
+                  <p className="text-gray-400 text-base">
                     Waiting for {gameState.currentTeam === "red" ? "Red" : "Blue"} spymaster to give a clue...
                   </p>
                 </div>
@@ -875,29 +877,26 @@ export default function GamePage() {
               )}
             </div>
 
-            {/* Spymaster Clue Input */}
-            {isSpymaster && !gameState.gameOver && (
+            {/* Spymaster Clue Input - Only show if it's your turn and clue hasn't been given */}
+            {isSpymaster && !gameState.gameOver && gameState.currentTeam === currentPlayer.team && !gameState.clueGivenThisTurn && (
               <div className="mt-8 max-w-[90%] mx-auto">
                 <div className="bg-[#0d1b2e] rounded-2xl p-6 border-2 border-gray-700">
                   <div className="mb-4">
                     <p className={`text-lg font-bold uppercase ${
                       gameState.currentTeam === "red" ? "text-red-400" : "text-blue-400"
                     }`}>
-                      {gameState.currentTeam === "red" ? "Red" : "Blue"} Team Clue:
+                      Give Your Clue:
                     </p>
-                    {gameState.currentTeam !== currentPlayer.team && (
-                      <p className="text-gray-400 text-sm mt-1">Waiting for {gameState.currentTeam} team...</p>
-                    )}
                   </div>
                   <div className="flex gap-3">
                     <input
                       type="text"
                       value={clueInput}
                       onChange={(e) => setClueInput(e.target.value)}
-                      placeholder={gameState.currentTeam === currentPlayer.team ? "Enter your clue..." : "Not your turn"}
-                      disabled={gameState.currentTeam !== currentPlayer.team}
-                      className="flex-1 bg-gray-800 text-white px-4 py-3 rounded-lg font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 border border-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                      placeholder="Enter your clue..."
+                      className="flex-1 bg-gray-800 text-white px-4 py-3 rounded-lg font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 border border-gray-600"
                       maxLength={50}
+                      autoFocus
                     />
                     <input
                       type="number"
@@ -906,12 +905,11 @@ export default function GamePage() {
                       value={clueNumber}
                       onChange={(e) => setClueNumber(parseInt(e.target.value) || 0)}
                       placeholder="#"
-                      disabled={gameState.currentTeam !== currentPlayer.team}
-                      className="w-20 bg-gray-800 text-white px-4 py-3 rounded-lg font-medium text-center focus:outline-none focus:ring-2 focus:ring-blue-500 border border-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="w-20 bg-gray-800 text-white px-4 py-3 rounded-lg font-medium text-center focus:outline-none focus:ring-2 focus:ring-blue-500 border border-gray-600"
                     />
                     <button
                       onClick={() => {
-                        if (clueInput.trim() && clueNumber >= 0 && gameState.currentTeam === currentPlayer.team && socket) {
+                        if (clueInput.trim() && clueNumber >= 0 && socket) {
                           socket.emit("give-clue", {
                             gameId: gameCode,
                             clue: {
@@ -923,7 +921,7 @@ export default function GamePage() {
                           setClueNumber(1);
                         }
                       }}
-                      disabled={!clueInput.trim() || clueNumber < 0 || gameState.currentTeam !== currentPlayer.team}
+                      disabled={!clueInput.trim() || clueNumber < 0}
                       className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 disabled:from-gray-600 disabled:to-gray-700 disabled:cursor-not-allowed px-8 py-3 rounded-lg font-bold smooth-transition"
                     >
                       Give Clue
