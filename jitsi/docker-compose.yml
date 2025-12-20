@@ -163,6 +163,8 @@ services:
       - JVB_TCP_PORT
       - JVB_STUN_SERVERS
       - JVB_ENABLE_APIS
+      - JVB_ADVERTISE_IPS
+      - JVB_ADVERTISE_PRIVATE_CANDIDATES=false
       - TZ
     depends_on:
       - prosody
