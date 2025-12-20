@@ -47,3 +47,25 @@ jobs:
 
       - name: Image digest
         run: echo "Image pushed with digest ${{ steps.meta.outputs.digest }}"
+
+  deploy:
+    needs: build-and-push
+    runs-on: self-hosted
+
+    steps:
+      - name: Pull latest image
+        run: |
+          cd ~/codenames
+          docker compose pull
+
+      - name: Restart containers
+        run: |
+          cd ~/codenames
+          docker compose down
+          docker compose up -d
+
+      - name: Verify deployment
+        run: |
+          cd ~/codenames
+          docker compose ps
+          echo "Deployment complete!"
