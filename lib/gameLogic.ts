@@ -63,6 +63,7 @@ export function createNewGame(gameId: string): GameState {
     },
     currentClue: null,
     clueGivenThisTurn: false,
+    guessesRemaining: 0,
   };
 }
 
@@ -124,31 +125,48 @@ export function revealCard(game: GameState, cardIndex: number): GameState {
   let newRedRemaining = game.redRemaining;
   let newBlueRemaining = game.blueRemaining;
   let newCurrentTeam = game.currentTeam;
+  let newGuessesRemaining = game.guessesRemaining - 1;
+  let newClue = game.currentClue;
+  let newClueGivenThisTurn = game.clueGivenThisTurn;
   let gameOver = false;
   let winner: Team | null = null;
+  let shouldSwitchTurn = false;
 
   // Update scores based on card type
   if (card.type === "red") {
     newRedScore++;
     newRedRemaining--;
-    // Switch turn if current team is blue
+    // Switch turn if current team is blue (wrong card)
     if (game.currentTeam === "blue") {
-      newCurrentTeam = "red";
+      shouldSwitchTurn = true;
     }
   } else if (card.type === "blue") {
     newBlueScore++;
     newBlueRemaining--;
-    // Switch turn if current team is red
+    // Switch turn if current team is red (wrong card)
     if (game.currentTeam === "red") {
-      newCurrentTeam = "blue";
+      shouldSwitchTurn = true;
     }
   } else if (card.type === "neutral") {
-    // Switch turn
-    newCurrentTeam = game.currentTeam === "red" ? "blue" : "red";
+    // Switch turn (bystander)
+    shouldSwitchTurn = true;
   } else if (card.type === "assassin") {
     // Game over, current team loses
     gameOver = true;
     winner = game.currentTeam === "red" ? "blue" : "red";
+  }
+
+  // Check if out of guesses (automatically end turn)
+  if (newGuessesRemaining <= 0) {
+    shouldSwitchTurn = true;
+  }
+
+  // If switching turns, reset clue
+  if (shouldSwitchTurn) {
+    newCurrentTeam = game.currentTeam === "red" ? "blue" : "red";
+    newClue = null;
+    newClueGivenThisTurn = false;
+    newGuessesRemaining = 0;
   }
 
   // Check if a team has found all their cards
@@ -168,6 +186,9 @@ export function revealCard(game: GameState, cardIndex: number): GameState {
     redRemaining: newRedRemaining,
     blueRemaining: newBlueRemaining,
     currentTeam: newCurrentTeam,
+    currentClue: newClue,
+    clueGivenThisTurn: newClueGivenThisTurn,
+    guessesRemaining: newGuessesRemaining,
     gameOver,
     winner,
   };
@@ -183,6 +204,7 @@ export function endTurn(game: GameState): GameState {
     currentTeam: game.currentTeam === "red" ? "blue" : "red",
     currentClue: null,
     clueGivenThisTurn: false,
+    guessesRemaining: 0,
   };
 }
 
@@ -192,6 +214,7 @@ export function giveClue(game: GameState, clue: { word: string; number: number }
   }
 
   // Store the clue with the current team
+  // Set guesses to clue number + 1 (bonus guess)
   return {
     ...game,
     currentClue: {
@@ -200,6 +223,7 @@ export function giveClue(game: GameState, clue: { word: string; number: number }
       team: game.currentTeam,
     },
     clueGivenThisTurn: true,
+    guessesRemaining: clue.number + 1,
   };
 }
 
@@ -400,6 +424,9 @@ export function endRound(game: GameState): GameState {
       red: {},
       blue: {},
     },
+    currentClue: null,
+    clueGivenThisTurn: false,
+    guessesRemaining: 0,
   };
 }
 
@@ -455,6 +482,9 @@ export function resetToLobby(game: GameState): GameState {
       red: {},
       blue: {},
     },
+    currentClue: null,
+    clueGivenThisTurn: false,
+    guessesRemaining: 0,
   };
 }
 

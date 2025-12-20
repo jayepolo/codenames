@@ -41,6 +41,7 @@ export interface GameState {
   };
   currentClue: ClueGiven | null;
   clueGivenThisTurn: boolean;
+  guessesRemaining: number;
 }
 
 export interface ClueGiven {

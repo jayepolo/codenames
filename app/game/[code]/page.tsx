@@ -396,25 +396,6 @@ export default function GamePage() {
   const isSpymaster = currentPlayer.role === "spymaster";
   const canRevealCards = currentPlayer.role === "operative" && currentPlayer.team === gameState.currentTeam;
 
-  // TEMPORARY: Add mock players for testing
-  if (gameState && currentPlayer.team && currentPlayer.role) {
-    const mockPlayers: Player[] = [
-      { id: 'mock1', name: 'Alice', team: 'red', role: 'spymaster', socketId: 'mock1' },
-      { id: 'mock2', name: 'Bob', team: 'red', role: 'operative', socketId: 'mock2' },
-      { id: 'mock3', name: 'Charlie', team: 'red', role: 'operative', socketId: 'mock3' },
-      { id: 'mock4', name: 'Diana', team: 'red', role: 'operative', socketId: 'mock4' },
-      { id: 'mock5', name: 'Ethan', team: 'red', role: 'operative', socketId: 'mock5' },
-      { id: 'mock6', name: 'Fiona', team: 'red', role: 'operative', socketId: 'mock6' },
-      { id: 'mock7', name: 'George', team: 'blue', role: 'spymaster', socketId: 'mock7' },
-      { id: 'mock8', name: 'Hannah', team: 'blue', role: 'operative', socketId: 'mock8' },
-      { id: 'mock9', name: 'Ivan', team: 'blue', role: 'operative', socketId: 'mock9' },
-      { id: 'mock10', name: 'Julia', team: 'blue', role: 'operative', socketId: 'mock10' },
-      { id: 'mock11', name: 'Kevin', team: 'blue', role: 'operative', socketId: 'mock11' },
-      { id: 'mock12', name: 'Laura', team: 'blue', role: 'operative', socketId: 'mock12' },
-    ];
-    gameState.players = [...gameState.players.filter(p => p.id === currentPlayer.id), ...mockPlayers];
-  }
-
   // Jitsi room URL with custom config
   const jitsiRoomName = `codenames-${gameCode}`;
   const jitsiConfig = {
@@ -808,17 +789,32 @@ export default function GamePage() {
                 const isRevealed = card.revealed;
                 const canClick = canRevealCards && !isRevealed && !gameState.gameOver;
 
+                // Spymaster view colors (when not revealed)
                 let bgColor = "bg-gray-700";
-                if (isRevealed) {
-                  if (card.type === "red") bgColor = "bg-red-600";
-                  else if (card.type === "blue") bgColor = "bg-blue-600";
-                  else if (card.type === "neutral") bgColor = "bg-gray-500";
-                  else if (card.type === "assassin") bgColor = "bg-black";
-                } else if (isSpymaster) {
+                if (!isRevealed && isSpymaster) {
                   if (card.type === "red") bgColor = "bg-red-900 border-2 border-red-500";
                   else if (card.type === "blue") bgColor = "bg-blue-900 border-2 border-blue-500";
                   else if (card.type === "neutral") bgColor = "bg-gray-600 border-2 border-gray-400";
                   else if (card.type === "assassin") bgColor = "bg-gray-900 border-2 border-gray-400";
+                }
+
+                // Cover card colors (when revealed)
+                let coverColor = "";
+                let coverIcon = "";
+                if (isRevealed) {
+                  if (card.type === "red") {
+                    coverColor = "bg-red-600";
+                    coverIcon = "🕵️";
+                  } else if (card.type === "blue") {
+                    coverColor = "bg-blue-600";
+                    coverIcon = "🕵️";
+                  } else if (card.type === "neutral") {
+                    coverColor = "bg-gray-500";
+                    coverIcon = "👤";
+                  } else if (card.type === "assassin") {
+                    coverColor = "bg-black";
+                    coverIcon = "💀";
+                  }
                 }
 
                 return (
@@ -828,13 +824,22 @@ export default function GamePage() {
                     disabled={!canClick}
                     className={`${bgColor} ${
                       canClick ? "hover:opacity-80 cursor-pointer" : ""
-                    } ${
-                      isRevealed ? "opacity-70" : ""
-                    } rounded-lg p-6 h-24 flex items-center justify-center text-center font-bold transition-all ${
+                    } rounded-lg h-24 flex items-center justify-center text-center font-bold transition-all relative overflow-hidden group ${
                       !canClick && !isSpymaster ? "cursor-default" : ""
                     }`}
                   >
-                    {card.word}
+                    {/* Word - always visible underneath */}
+                    <span className="p-6">{card.word}</span>
+
+                    {/* Cover card overlay - shown when revealed, hidden on hover */}
+                    {isRevealed && (
+                      <div className={`${coverColor} absolute inset-0 flex flex-col items-center justify-center transition-opacity group-hover:opacity-0 pointer-events-none`}>
+                        <span className="text-4xl">{coverIcon}</span>
+                        <span className="text-xs mt-1 uppercase font-bold text-white opacity-75">
+                          {card.type === "neutral" ? "Bystander" : card.type}
+                        </span>
+                      </div>
+                    )}
                   </button>
                 );
               })}
@@ -971,12 +976,23 @@ export default function GamePage() {
               {chatMessages.length === 0 ? (
                 <p className="text-gray-500 text-sm text-center mt-4">No messages yet. Say hello!</p>
               ) : (
-                chatMessages.map((msg) => (
-                  <div key={msg.id} className="text-sm">
-                    <span className="font-semibold text-blue-400">{msg.playerName}:</span>{" "}
-                    <span className="text-gray-200">{msg.message}</span>
-                  </div>
-                ))
+                chatMessages.map((msg) => {
+                  // Find player by name to get their team
+                  const player = gameState?.players.find(p => p.name === msg.playerName);
+                  const team = player?.team;
+
+                  // Color based on team
+                  let nameColor = "text-gray-400"; // No team
+                  if (team === "red") nameColor = "text-red-400";
+                  else if (team === "blue") nameColor = "text-blue-400";
+
+                  return (
+                    <div key={msg.id} className="text-sm">
+                      <span className={`font-semibold ${nameColor}`}>{msg.playerName}:</span>{" "}
+                      <span className="text-gray-200">{msg.message}</span>
+                    </div>
+                  );
+                })
               )}
               <div ref={chatEndRef} />
             </div>
