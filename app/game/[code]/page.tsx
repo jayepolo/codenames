@@ -32,6 +32,10 @@ export default function GamePage() {
   const [chatInput, setChatInput] = useState("");
   const [clueInput, setClueInput] = useState("");
   const [clueNumber, setClueNumber] = useState<number>(1);
+  const [peekedCardIndex, setPeekedCardIndex] = useState<number | null>(null);
+  const [clickedCardIndex, setClickedCardIndex] = useState<number | null>(null);
+  const [showTurnTransition, setShowTurnTransition] = useState(false);
+  const [previousTeam, setPreviousTeam] = useState<"red" | "blue" | null>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   // Session scoring
@@ -224,6 +228,31 @@ export default function GamePage() {
     };
   }, [isResizingVideo]);
 
+  // Detect turn changes and show transition
+  useEffect(() => {
+    if (gameState && gameState.phase === "active") {
+      if (previousTeam !== null && previousTeam !== gameState.currentTeam) {
+        // Turn changed!
+        setShowTurnTransition(true);
+        const timer = setTimeout(() => {
+          setShowTurnTransition(false);
+        }, 2000);
+        return () => clearTimeout(timer);
+      }
+      setPreviousTeam(gameState.currentTeam);
+    }
+  }, [gameState?.currentTeam, gameState?.phase]);
+
+  // Clear clicked card animation after delay
+  useEffect(() => {
+    if (clickedCardIndex !== null) {
+      const timer = setTimeout(() => {
+        setClickedCardIndex(null);
+      }, 300);
+      return () => clearTimeout(timer);
+    }
+  }, [clickedCardIndex]);
+
   const handleRoleSelect = (team: Team, role: Role) => {
     if (socket) {
       socket.emit("assign-role", { gameId: gameCode, team, role });
@@ -244,6 +273,9 @@ export default function GamePage() {
 
     // Don't allow clicking revealed cards
     if (gameState.cards[cardIndex].revealed) return;
+
+    // Trigger click animation
+    setClickedCardIndex(cardIndex);
 
     socket.emit("reveal-card", { gameId: gameCode, cardIndex });
   };
@@ -752,6 +784,21 @@ export default function GamePage() {
           </div>
         ) : gameState.phase === "active" ? (
           <>
+            {/* Turn Transition Banner */}
+            {showTurnTransition && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
+                <div className={`${
+                  gameState.currentTeam === "red"
+                    ? "bg-red-600 border-red-400"
+                    : "bg-blue-600 border-blue-400"
+                } border-4 rounded-2xl px-16 py-8 shadow-2xl animate-pulse`}>
+                  <p className={`text-6xl font-black uppercase tracking-wider text-white`}>
+                    {gameState.currentTeam === "red" ? "🔴 RED" : "🔵 BLUE"} TEAM'S TURN
+                  </p>
+                </div>
+              </div>
+            )}
+
             {/* Current Clue Display */}
             <div className="max-w-[90%] mx-auto mb-6">
               {gameState.currentClue ? (
@@ -817,27 +864,47 @@ export default function GamePage() {
                   }
                 }
 
+                const isPeeking = peekedCardIndex === index;
+
+                // Background color for revealed cards when peeking
+                let peekBgColor = "";
+                if (isRevealed && isPeeking) {
+                  if (card.type === "red") peekBgColor = "bg-red-900 border-2 border-red-500";
+                  else if (card.type === "blue") peekBgColor = "bg-blue-900 border-2 border-blue-500";
+                  else if (card.type === "neutral") peekBgColor = "bg-gray-600 border-2 border-gray-400";
+                  else if (card.type === "assassin") peekBgColor = "bg-gray-900 border-2 border-gray-400";
+                }
+
                 return (
                   <button
                     key={index}
-                    onClick={() => handleCardClick(index)}
-                    disabled={!canClick}
-                    className={`${bgColor} ${
+                    onClick={() => {
+                      if (isRevealed) {
+                        // Toggle peek state for revealed cards
+                        setPeekedCardIndex(isPeeking ? null : index);
+                      } else {
+                        // Normal card click for unrevealed cards
+                        handleCardClick(index);
+                      }
+                    }}
+                    disabled={!canClick && !isRevealed}
+                    className={`${isPeeking ? peekBgColor : bgColor} ${
                       canClick ? "hover:opacity-80 cursor-pointer" : ""
-                    } rounded-lg h-24 flex items-center justify-center text-center font-bold transition-all relative overflow-hidden group ${
-                      !canClick && !isSpymaster ? "cursor-default" : ""
+                    } ${
+                      isRevealed ? "cursor-pointer" : ""
+                    } ${
+                      clickedCardIndex === index ? "ring-4 ring-white shadow-2xl shadow-white/50" : ""
+                    } rounded-lg h-24 flex items-center justify-center text-center font-bold transition-all relative overflow-hidden ${
+                      !canClick && !isSpymaster && !isRevealed ? "cursor-default" : ""
                     }`}
                   >
-                    {/* Word - always visible underneath */}
+                    {/* Word - always visible underneath or when peeking */}
                     <span className="p-6">{card.word}</span>
 
-                    {/* Cover card overlay - shown when revealed, hidden on hover */}
-                    {isRevealed && (
-                      <div className={`${coverColor} absolute inset-0 flex flex-col items-center justify-center transition-opacity group-hover:opacity-0 pointer-events-none`}>
-                        <span className="text-4xl">{coverIcon}</span>
-                        <span className="text-xs mt-1 uppercase font-bold text-white opacity-75">
-                          {card.type === "neutral" ? "Bystander" : card.type}
-                        </span>
+                    {/* Cover card overlay - shown when revealed and not peeking */}
+                    {isRevealed && !isPeeking && (
+                      <div className={`${coverColor} absolute inset-0 flex items-center justify-center transition-all`}>
+                        <span className="text-5xl">{coverIcon}</span>
                       </div>
                     )}
                   </button>
@@ -850,7 +917,8 @@ export default function GamePage() {
               {currentPlayer.team === gameState.currentTeam && currentPlayer.role === "operative" && !gameState.gameOver && (
                 <button
                   onClick={handleEndTurn}
-                  className="bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 px-8 py-4 rounded-xl font-black text-lg uppercase tracking-wide smooth-transition hover:scale-105 card-shadow-lg"
+                  disabled={!gameState.clueGivenThisTurn}
+                  className="bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 disabled:from-gray-600 disabled:to-gray-700 disabled:cursor-not-allowed px-8 py-4 rounded-xl font-black text-lg uppercase tracking-wide smooth-transition hover:scale-105 card-shadow-lg"
                 >
                   End Turn
                 </button>
