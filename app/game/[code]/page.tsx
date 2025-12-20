@@ -791,7 +791,7 @@ export default function GamePage() {
                   gameState.currentTeam === "red"
                     ? "bg-red-600 border-red-400"
                     : "bg-blue-600 border-blue-400"
-                } border-4 rounded-2xl px-16 py-8 shadow-2xl animate-pulse`}>
+                } border-4 rounded-2xl px-16 py-8 shadow-2xl`}>
                   <p className={`text-6xl font-black uppercase tracking-wider text-white`}>
                     {gameState.currentTeam === "red" ? "🔴 RED" : "🔵 BLUE"} TEAM'S TURN
                   </p>
@@ -880,11 +880,17 @@ export default function GamePage() {
                     key={index}
                     onClick={() => {
                       if (isRevealed) {
-                        // Toggle peek state for revealed cards
-                        setPeekedCardIndex(isPeeking ? null : index);
+                        // Click to peek under revealed cards
+                        setPeekedCardIndex(index);
                       } else {
                         // Normal card click for unrevealed cards
                         handleCardClick(index);
+                      }
+                    }}
+                    onMouseLeave={() => {
+                      // Hide peek when mouse leaves
+                      if (isRevealed && isPeeking) {
+                        setPeekedCardIndex(null);
                       }
                     }}
                     disabled={!canClick && !isRevealed}
