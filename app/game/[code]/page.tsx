@@ -492,7 +492,6 @@ export default function GamePage() {
     startWithAudioMuted: true,
     startWithVideoMuted: true,
     prejoinPageEnabled: false,
-    defaultLocalDisplayName: displayName,
     disableModeratorIndicator: true,
   };
 
@@ -523,10 +522,11 @@ export default function GamePage() {
     }, {} as Record<string, string>),
   });
 
-  // Add userInfo.displayName to properly set the Jitsi display name
-  configParams.append('userInfo.displayName', displayName);
+  // Jitsi reads userInfo from URL fragment for display name
+  const jitsiUrl = `https://meet.pololabs.io/${jitsiRoomName}?${configParams.toString()}#userInfo.displayName="${encodeURIComponent(displayName)}"`;
 
-  const jitsiUrl = `https://meet.pololabs.io/${jitsiRoomName}#${configParams.toString()}`;
+  console.log('Jitsi URL:', jitsiUrl);
+  console.log('Display Name:', displayName);
 
   return (
     <div className="h-screen bg-[#0a1628] text-white flex overflow-hidden">
