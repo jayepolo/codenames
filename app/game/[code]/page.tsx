@@ -484,11 +484,15 @@ export default function GamePage() {
 
   // Jitsi room URL with custom config
   const jitsiRoomName = `codenames-${gameCode}`;
+
+  // Use current player name (updates when they change it)
+  const displayName = currentPlayer?.name || playerName || "Anonymous";
+
   const jitsiConfig = {
     startWithAudioMuted: true,
     startWithVideoMuted: true,
     prejoinPageEnabled: false,
-    defaultLocalDisplayName: playerName,
+    defaultLocalDisplayName: displayName,
     disableModeratorIndicator: true,
   };
 
@@ -518,6 +522,9 @@ export default function GamePage() {
       return acc;
     }, {} as Record<string, string>),
   });
+
+  // Add userInfo.displayName to properly set the Jitsi display name
+  configParams.append('userInfo.displayName', displayName);
 
   const jitsiUrl = `https://meet.pololabs.io/${jitsiRoomName}#${configParams.toString()}`;
 
