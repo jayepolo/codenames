@@ -21,7 +21,6 @@ services:
       - "traefik.http.routers.codenames.rule=Host(`codenames.pololabs.io`)"
       - "traefik.http.routers.codenames.entrypoints=websecure"
       - "traefik.http.routers.codenames.tls=true"
-      - "traefik.http.routers.codenames.tls.certresolver=cloudflare"
 
       # Service configuration
       - "traefik.http.services.codenames.loadbalancer.server.port=3000"
