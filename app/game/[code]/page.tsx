@@ -38,6 +38,12 @@ export default function GamePage() {
   const [previousTeam, setPreviousTeam] = useState<"red" | "blue" | null>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
+  // User menu state
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+  const [isChangeNameModalOpen, setIsChangeNameModalOpen] = useState(false);
+  const [newName, setNewName] = useState("");
+  const userMenuRef = useRef<HTMLDivElement>(null);
+
   // Session scoring
   const [sessionScore, setSessionScore] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -253,6 +259,20 @@ export default function GamePage() {
     }
   }, [clickedCardIndex]);
 
+  // Close user menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
+        setIsUserMenuOpen(false);
+      }
+    };
+
+    if (isUserMenuOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [isUserMenuOpen]);
+
   const handleRoleSelect = (team: Team, role: Role) => {
     if (socket) {
       socket.emit("assign-role", { gameId: gameCode, team, role });
@@ -392,6 +412,40 @@ export default function GamePage() {
     const url = `${window.location.origin}/game/${gameCode}`;
     navigator.clipboard.writeText(url);
     alert("Game link copied! Share it with your friends.");
+  };
+
+  const handleOpenChangeName = () => {
+    setNewName(currentPlayer?.name || "");
+    setIsChangeNameModalOpen(true);
+    setIsUserMenuOpen(false);
+  };
+
+  const handleChangeName = () => {
+    const trimmedName = newName.trim();
+    if (!trimmedName) {
+      alert("Please enter a name");
+      return;
+    }
+
+    if (!socket || !currentPlayer) return;
+
+    // Update localStorage
+    localStorage.setItem("codenames-username", trimmedName);
+
+    // Emit socket event to update name on server
+    socket.emit("update-player-name", {
+      gameId: gameCode,
+      playerId: currentPlayer.id,
+      newName: trimmedName
+    });
+
+    setIsChangeNameModalOpen(false);
+  };
+
+  const handleLeaveGame = () => {
+    if (confirm("Are you sure you want to leave this game?")) {
+      window.location.href = "/";
+    }
   };
 
   const handleSendMessage = (e: React.FormEvent) => {
@@ -607,13 +661,51 @@ export default function GamePage() {
             <div>
               <h1 className="text-6xl font-black tracking-tight text-white">CODENAMES</h1>
             </div>
-            <div>
+            <div className="flex items-center gap-4">
               <button
                 onClick={copyGameLink}
                 className="border-2 border-white bg-transparent text-white hover:bg-white hover:text-gray-900 px-8 py-3 rounded-xl font-bold smooth-transition"
               >
                 Copy Invite Link
               </button>
+
+              {/* User Menu Dropdown */}
+              <div className="relative" ref={userMenuRef}>
+                <button
+                  onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
+                  className="flex items-center gap-2 border-2 border-gray-400 bg-transparent text-white hover:bg-gray-700 px-6 py-3 rounded-xl font-semibold smooth-transition"
+                >
+                  <span>{currentPlayer?.name || "Anonymous"}</span>
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+
+                {/* Dropdown Menu */}
+                {isUserMenuOpen && (
+                  <div className="absolute right-0 mt-2 w-48 bg-[#0d1b2e] border-2 border-gray-600 rounded-xl shadow-xl z-50">
+                    <button
+                      onClick={handleOpenChangeName}
+                      className="w-full text-left px-4 py-3 text-white hover:bg-gray-700 flex items-center gap-2 rounded-t-xl smooth-transition"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                      </svg>
+                      Change Name
+                    </button>
+                    <div className="border-t border-gray-600"></div>
+                    <button
+                      onClick={handleLeaveGame}
+                      className="w-full text-left px-4 py-3 text-red-400 hover:bg-gray-700 flex items-center gap-2 rounded-b-xl smooth-transition"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                      </svg>
+                      Leave Game
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -1094,6 +1186,47 @@ export default function GamePage() {
           </div>
         </div>
       </div>
+
+      {/* Change Name Modal */}
+      {isChangeNameModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50" onClick={() => setIsChangeNameModalOpen(false)}>
+          <div className="bg-[#0d1b2e] rounded-2xl p-8 border-2 border-gray-600 max-w-md w-full mx-4" onClick={(e) => e.stopPropagation()}>
+            <h2 className="text-3xl font-black mb-6 text-white">Change Your Name</h2>
+
+            <div className="mb-6">
+              <label htmlFor="newName" className="block text-sm font-semibold text-gray-300 uppercase tracking-wider mb-2">
+                New Name
+              </label>
+              <input
+                id="newName"
+                type="text"
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && handleChangeName()}
+                placeholder="Enter your new name"
+                className="w-full px-4 py-3 bg-[#0a1628]/50 border-2 border-gray-600/50 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-white placeholder-gray-500 transition-all duration-200"
+                maxLength={20}
+                autoFocus
+              />
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={handleChangeName}
+                className="flex-1 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 text-white font-bold py-3 px-6 rounded-xl transition-all duration-200 transform hover:scale-105"
+              >
+                Save
+              </button>
+              <button
+                onClick={() => setIsChangeNameModalOpen(false)}
+                className="flex-1 bg-gray-700 hover:bg-gray-600 text-white font-bold py-3 px-6 rounded-xl transition-all duration-200"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

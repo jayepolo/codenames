@@ -120,6 +120,17 @@ app.prepare().then(() => {
       io.to(gameId).emit("chat-message", message);
     });
 
+    socket.on("update-player-name", ({ gameId, playerId, newName }) => {
+      console.log(`Player ${playerId} changing name to ${newName} in game ${gameId}`);
+
+      const updatedGame = gameManager.updatePlayerName(gameId, playerId, newName);
+
+      if (updatedGame) {
+        console.log("Broadcasting updated game state after name change");
+        io.to(gameId).emit("game-state", updatedGame);
+      }
+    });
+
     socket.on("join-team", ({ gameId, team }) => {
       console.log(`join-team event received: gameId=${gameId}, team=${team}`);
       const playerInfo = socketPlayerMap.get(socket.id);

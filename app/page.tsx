@@ -1,18 +1,30 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+
+const USERNAME_STORAGE_KEY = "codenames-username";
 
 export default function Home() {
   const [playerName, setPlayerName] = useState("");
   const [gameCode, setGameCode] = useState("");
   const router = useRouter();
 
+  // Load saved username on mount
+  useEffect(() => {
+    const savedUsername = localStorage.getItem(USERNAME_STORAGE_KEY);
+    if (savedUsername) {
+      setPlayerName(savedUsername);
+    }
+  }, []);
+
   const createGame = () => {
     if (!playerName.trim()) {
       alert("Please enter your name");
       return;
     }
+    // Save username to localStorage
+    localStorage.setItem(USERNAME_STORAGE_KEY, playerName.trim());
     const code = generateGameCode();
     router.push(`/game/${code}?name=${encodeURIComponent(playerName)}`);
   };
@@ -26,6 +38,8 @@ export default function Home() {
       alert("Please enter a game code");
       return;
     }
+    // Save username to localStorage
+    localStorage.setItem(USERNAME_STORAGE_KEY, playerName.trim());
     router.push(`/game/${gameCode.toUpperCase()}?name=${encodeURIComponent(playerName)}`);
   };
 

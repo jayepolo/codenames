@@ -131,6 +131,21 @@ class GameManager {
     return updatedGame;
   }
 
+  updatePlayerName(gameId: string, playerId: string, newName: string): GameState | null {
+    const game = this.games.get(gameId);
+    if (!game) {
+      return null;
+    }
+
+    const updatedPlayers = game.players.map(player =>
+      player.id === playerId ? { ...player, name: newName } : player
+    );
+
+    const updatedGame = { ...game, players: updatedPlayers };
+    this.games.set(gameId, updatedGame);
+    return updatedGame;
+  }
+
   assignSpymasterToTeam(gameId: string, playerId: string, team: Team): GameState | null {
     const game = this.games.get(gameId);
     if (!game) {
