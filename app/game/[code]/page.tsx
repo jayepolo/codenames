@@ -525,9 +525,6 @@ export default function GamePage() {
   // Jitsi reads userInfo from URL fragment for display name
   const jitsiUrl = `https://meet.pololabs.io/${jitsiRoomName}?${configParams.toString()}#userInfo.displayName="${encodeURIComponent(displayName)}"`;
 
-  console.log('Jitsi URL:', jitsiUrl);
-  console.log('Display Name:', displayName);
-
   return (
     <div className="h-screen bg-[#0a1628] text-white flex overflow-hidden">
       {/* Left Game Info Panel */}
