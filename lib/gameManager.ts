@@ -24,6 +24,10 @@ class GameManager {
     return this.games.get(gameId);
   }
 
+  getAllGames(): GameState[] {
+    return Array.from(this.games.values());
+  }
+
   createGame(gameId: string): GameState {
     const game = createNewGame(gameId);
     this.games.set(gameId, game);
