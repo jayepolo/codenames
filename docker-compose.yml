@@ -5,6 +5,8 @@ services:
     image: ghcr.io/jayepolo/codenames:latest
     container_name: codenames
     restart: unless-stopped
+    env_file:
+      - .env
     environment:
       - NODE_ENV=production
       - PORT=3000
@@ -21,6 +23,7 @@ services:
       - "traefik.http.routers.codenames.rule=Host(`codenames.pololabs.io`)"
       - "traefik.http.routers.codenames.entrypoints=websecure"
       - "traefik.http.routers.codenames.tls=true"
+      - "traefik.http.routers.codenames.tls.certresolver=cloudflare"
 
       # Service configuration
       - "traefik.http.services.codenames.loadbalancer.server.port=3000"
