@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 interface Player {
   id: string;
@@ -27,6 +28,8 @@ interface Game {
   currentClue: { word: string; number: number; team: string } | null;
   redSpymaster: string | null;
   blueSpymaster: string | null;
+  status: 'active' | 'ended';
+  endedAt?: number;
 }
 
 interface GamesData {
@@ -51,18 +54,236 @@ interface JitsiData {
   error?: string;
 }
 
+interface MetricDataPoint {
+  timestamp: number;
+  jitter: number;
+  participantCount: number;
+}
+
+function VideoQualityChart({ gameId }: { gameId: string }) {
+  const [metrics, setMetrics] = useState<MetricDataPoint[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchMetrics = async () => {
+    try {
+      const response = await fetch(`/api/admin/games/${gameId}/metrics`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch metrics');
+      }
+      const data = await response.json();
+      setMetrics(data.dataPoints || []);
+      setLoading(false);
+    } catch (error) {
+      console.error('Error fetching metrics:', error);
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchMetrics();
+    const interval = setInterval(fetchMetrics, 5000);
+    return () => clearInterval(interval);
+  }, [gameId]);
+
+  if (loading) {
+    return (
+      <div className="bg-slate-700/30 border border-slate-600/30 rounded-lg p-6">
+        <h4 className="text-slate-300 font-semibold mb-3">Video Quality Trends</h4>
+        <div className="text-slate-400 text-sm">Loading metrics...</div>
+      </div>
+    );
+  }
+
+  if (!metrics || metrics.length === 0) {
+    return (
+      <div className="bg-slate-700/30 border border-slate-600/30 rounded-lg p-6">
+        <h4 className="text-slate-300 font-semibold mb-3">Video Quality Trends</h4>
+        <div className="text-slate-400 text-sm">No metrics available yet</div>
+      </div>
+    );
+  }
+
+  // Format data for the chart
+  const chartData = metrics.map((point) => ({
+    time: new Date(point.timestamp).toLocaleTimeString('en-US', {
+      hour: '2-digit',
+      minute: '2-digit',
+    }),
+    jitter: parseFloat((point.jitter * 1000).toFixed(2)), // Convert to ms
+    participants: point.participantCount,
+  }));
+
+  return (
+    <div className="bg-slate-700/30 border border-slate-600/30 rounded-lg p-6">
+      <h4 className="text-slate-300 font-semibold mb-4">Video Quality Trends (30 min)</h4>
+      <ResponsiveContainer width="100%" height={250}>
+        <LineChart data={chartData}>
+          <CartesianGrid strokeDasharray="3 3" stroke="#475569" />
+          <XAxis
+            dataKey="time"
+            stroke="#94a3b8"
+            tick={{ fill: '#94a3b8', fontSize: 12 }}
+            tickLine={{ stroke: '#475569' }}
+          />
+          <YAxis
+            stroke="#94a3b8"
+            tick={{ fill: '#94a3b8', fontSize: 12 }}
+            tickLine={{ stroke: '#475569' }}
+            label={{ value: 'Jitter (ms)', angle: -90, position: 'insideLeft', fill: '#94a3b8' }}
+          />
+          <Tooltip
+            contentStyle={{
+              backgroundColor: '#1e293b',
+              border: '1px solid #475569',
+              borderRadius: '8px',
+              color: '#e2e8f0',
+            }}
+            labelStyle={{ color: '#cbd5e1' }}
+          />
+          <Line
+            type="monotone"
+            dataKey="jitter"
+            stroke="#3b82f6"
+            strokeWidth={2}
+            dot={false}
+            name="Jitter (ms)"
+          />
+        </LineChart>
+      </ResponsiveContainer>
+      <div className="mt-3 text-xs text-slate-400">
+        Current participants in video call: {chartData[chartData.length - 1]?.participants || 0}
+      </div>
+    </div>
+  );
+}
+
+function PlayerRow({
+  player,
+  gameId,
+  gameStatus,
+}: {
+  player: Player;
+  gameId: string;
+  gameStatus: 'active' | 'ended';
+}) {
+  const [name, setName] = useState(player.name);
+  const [isEditing, setIsEditing] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
+
+  const teamIndicator = player.team === 'red' ? '🔴' : player.team === 'blue' ? '🔵' : '⚪';
+
+  const handleNameUpdate = async () => {
+    if (name === player.name || !name.trim() || gameStatus === 'ended') {
+      setName(player.name);
+      setIsEditing(false);
+      return;
+    }
+
+    setIsUpdating(true);
+    try {
+      const response = await fetch(`/api/admin/games/${gameId}/players/${player.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: name.trim() }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update name');
+      }
+
+      // Success - name will be updated via game state refresh
+    } catch (error) {
+      console.error('Error updating player name:', error);
+      setName(player.name); // Rollback on error
+    } finally {
+      setIsUpdating(false);
+      setIsEditing(false);
+    }
+  };
+
+  const handleSpymasterToggle = async () => {
+    if (gameStatus === 'ended') return;
+
+    setIsUpdating(true);
+    try {
+      const response = await fetch(`/api/admin/games/${gameId}/players/${player.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ toggleSpymaster: true }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to toggle spymaster');
+      }
+
+      // Success - role will be updated via game state refresh
+    } catch (error) {
+      console.error('Error toggling spymaster:', error);
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  return (
+    <tr className="text-white text-sm hover:bg-slate-700/30">
+      <td className="px-4 py-3">
+        <span className="text-lg">{teamIndicator}</span>
+      </td>
+      <td className="px-4 py-3">
+        {isEditing ? (
+          <input
+            type="text"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            onBlur={handleNameUpdate}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                handleNameUpdate();
+              } else if (e.key === 'Escape') {
+                setName(player.name);
+                setIsEditing(false);
+              }
+            }}
+            autoFocus
+            disabled={isUpdating || gameStatus === 'ended'}
+            className="w-full px-2 py-1 bg-slate-900 border border-slate-600 rounded text-white focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+          />
+        ) : (
+          <button
+            onClick={() => gameStatus === 'active' && setIsEditing(true)}
+            disabled={gameStatus === 'ended'}
+            className={`text-left ${gameStatus === 'active' ? 'hover:text-blue-400' : 'cursor-not-allowed opacity-70'}`}
+          >
+            {player.name}
+          </button>
+        )}
+      </td>
+      <td className="px-4 py-3">
+        <input
+          type="checkbox"
+          checked={player.role === 'spymaster'}
+          onChange={handleSpymasterToggle}
+          disabled={isUpdating || gameStatus === 'ended' || !player.team}
+          className="rounded border-slate-600 bg-slate-900 text-blue-600 focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+        />
+      </td>
+    </tr>
+  );
+}
+
 export default function AdminDashboard() {
   const [gamesData, setGamesData] = useState<GamesData | null>(null);
   const [jitsiData, setJitsiData] = useState<JitsiData | null>(null);
   const [expandedGame, setExpandedGame] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [autoRefresh, setAutoRefresh] = useState(true);
+  const [gameFilter, setGameFilter] = useState<'active' | 'ended' | 'both'>('active');
   const router = useRouter();
 
   const fetchData = async () => {
     try {
       const [gamesRes, jitsiRes] = await Promise.all([
-        fetch('/api/admin/games'),
+        fetch(`/api/admin/games?filter=${gameFilter}`),
         fetch('/api/admin/jitsi'),
       ]);
 
@@ -93,7 +314,7 @@ export default function AdminDashboard() {
       const interval = setInterval(fetchData, 5000);
       return () => clearInterval(interval);
     }
-  }, [autoRefresh]);
+  }, [autoRefresh, gameFilter]);
 
   const handleLogout = async () => {
     await fetch('/api/admin/logout', { method: 'POST' });
@@ -145,6 +366,15 @@ export default function AdminDashboard() {
               <p className="text-slate-400 text-sm">Administration Dashboard</p>
             </div>
             <div className="flex items-center gap-4">
+              <select
+                value={gameFilter}
+                onChange={(e) => setGameFilter(e.target.value as 'active' | 'ended' | 'both')}
+                className="px-3 py-2 bg-slate-900 border border-slate-600 text-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="active">Active Games</option>
+                <option value="ended">Ended Games</option>
+                <option value="both">All Games</option>
+              </select>
               <label className="flex items-center gap-2 text-sm text-slate-300">
                 <input
                   type="checkbox"
@@ -206,7 +436,7 @@ export default function AdminDashboard() {
         {/* Games Table */}
         <div className="bg-slate-800/50 border border-slate-700 rounded-lg overflow-hidden">
           <div className="px-6 py-4 border-b border-slate-700">
-            <h2 className="text-lg font-semibold text-white">Active Games</h2>
+            <h2 className="text-lg font-semibold text-white">Games</h2>
           </div>
 
           {gamesData && gamesData.games.length === 0 ? (
@@ -233,7 +463,14 @@ export default function AdminDashboard() {
                     const isExpanded = expandedGame === game.id;
 
                     return (
-                      <tr key={game.id} className="text-white hover:bg-slate-700/30 transition-colors">
+                      <tr
+                        key={game.id}
+                        className={`text-white transition-colors ${
+                          game.status === 'ended'
+                            ? 'bg-slate-700/20 hover:bg-slate-700/40'
+                            : 'hover:bg-slate-700/30'
+                        }`}
+                      >
                         <td className="px-6 py-4">
                           <button
                             onClick={() => setExpandedGame(isExpanded ? null : game.id)}
@@ -243,17 +480,24 @@ export default function AdminDashboard() {
                           </button>
                         </td>
                         <td className="px-6 py-4">
-                          <span
-                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                              game.phase === 'active'
-                                ? 'bg-green-500/20 text-green-400'
-                                : game.phase === 'finished'
-                                ? 'bg-gray-500/20 text-gray-400'
-                                : 'bg-yellow-500/20 text-yellow-400'
-                            }`}
-                          >
-                            {formatPhase(game.phase)}
-                          </span>
+                          <div className="flex items-center gap-2">
+                            <span
+                              className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                game.phase === 'active'
+                                  ? 'bg-green-500/20 text-green-400'
+                                  : game.phase === 'finished'
+                                  ? 'bg-gray-500/20 text-gray-400'
+                                  : 'bg-yellow-500/20 text-yellow-400'
+                              }`}
+                            >
+                              {formatPhase(game.phase)}
+                            </span>
+                            {game.status === 'ended' && (
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-600/50 text-slate-400">
+                                Ended
+                              </span>
+                            )}
+                          </div>
                         </td>
                         <td className="px-6 py-4">
                           <div className="text-sm">{game.playerCount} players</div>
@@ -331,34 +575,32 @@ export default function AdminDashboard() {
                     </button>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    {/* Red Team */}
-                    <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-4">
-                      <h4 className="text-red-400 font-semibold mb-3">Red Team ({redTeam.length})</h4>
-                      <div className="space-y-2">
-                        {redTeam.map((player) => (
-                          <div key={player.id} className="text-sm">
-                            <div className="text-white">{player.name}</div>
-                            <div className="text-red-300 text-xs">
-                              {player.role === 'spymaster' ? '👑 Spymaster' : 'Operative'}
-                            </div>
-                          </div>
-                        ))}
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    {/* Players Table */}
+                    <div className="lg:col-span-2 bg-slate-700/30 border border-slate-600/30 rounded-lg overflow-hidden">
+                      <div className="px-4 py-3 border-b border-slate-600/30">
+                        <h4 className="text-slate-300 font-semibold">Players</h4>
                       </div>
-                    </div>
-
-                    {/* Blue Team */}
-                    <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4">
-                      <h4 className="text-blue-400 font-semibold mb-3">Blue Team ({blueTeam.length})</h4>
-                      <div className="space-y-2">
-                        {blueTeam.map((player) => (
-                          <div key={player.id} className="text-sm">
-                            <div className="text-white">{player.name}</div>
-                            <div className="text-blue-300 text-xs">
-                              {player.role === 'spymaster' ? '👑 Spymaster' : 'Operative'}
-                            </div>
-                          </div>
-                        ))}
+                      <div className="overflow-x-auto">
+                        <table className="w-full">
+                          <thead>
+                            <tr className="bg-slate-900/50 text-slate-400 text-xs">
+                              <th className="px-4 py-2 text-left font-medium">Team</th>
+                              <th className="px-4 py-2 text-left font-medium">Name</th>
+                              <th className="px-4 py-2 text-left font-medium">Spymaster</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-700/50">
+                            {game.players.map((player) => (
+                              <PlayerRow
+                                key={player.id}
+                                player={player}
+                                gameId={game.id}
+                                gameStatus={game.status}
+                              />
+                            ))}
+                          </tbody>
+                        </table>
                       </div>
                     </div>
 
@@ -388,14 +630,19 @@ export default function AdminDashboard() {
                               : 'In Progress'}
                           </span>
                         </div>
-                        {unassigned.length > 0 && (
-                          <div>
-                            <span className="text-slate-400">Unassigned:</span>
-                            <span className="text-white ml-2">{unassigned.length} players</span>
+                        <div>
+                          <span className="text-slate-400">Teams:</span>
+                          <div className="text-white ml-2">
+                            🔴 {redTeam.length} | 🔵 {blueTeam.length} | ⚪ {unassigned.length}
                           </div>
-                        )}
+                        </div>
                       </div>
                     </div>
+                  </div>
+
+                  {/* Video Quality Chart */}
+                  <div className="mt-6">
+                    <VideoQualityChart gameId={game.id} />
                   </div>
                 </div>
               );

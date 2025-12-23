@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { isAdminAuthenticated } from '@/lib/adminAuth';
+import { Player } from '@/types/game';
 
 export async function PATCH(
   request: NextRequest,
@@ -35,7 +36,7 @@ export async function PATCH(
     }
 
     // Verify player exists
-    const player = game.players.find(p => p.id === playerId);
+    const player = game.players.find((p: Player) => p.id === playerId);
     if (!player) {
       return NextResponse.json(
         { error: 'Player not found' },
