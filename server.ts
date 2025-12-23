@@ -4,6 +4,7 @@ import next from "next";
 import { Server as SocketIOServer } from "socket.io";
 import { gameManager } from "./lib/gameManager";
 import { Player } from "./types/game";
+import { startJitsiPoller } from "./lib/jitsiPoller";
 
 // Make gameManager globally accessible for API routes
 (global as any).gameManager = gameManager;
@@ -250,5 +251,8 @@ app.prepare().then(() => {
     })
     .listen(port, () => {
       console.log(`> Ready on http://${hostname}:${port}`);
+
+      // Start Jitsi metrics polling
+      startJitsiPoller();
     });
 });

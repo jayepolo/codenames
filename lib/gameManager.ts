@@ -16,6 +16,7 @@ import {
   voteForSpymaster as voteForSpymasterLogic,
   startGameFromLobby as startGameFromLobbyLogic,
 } from "./gameLogic";
+import { endGame as saveEndedGame } from "./endedGames";
 
 class GameManager {
   private games: Map<string, GameState> = new Map();
@@ -242,6 +243,51 @@ class GameManager {
     this.games.delete(gameId);
   }
 
+  togglePlayerSpymaster(gameId: string, playerId: string): GameState | null {
+    const game = this.games.get(gameId);
+    if (!game) {
+      return null;
+    }
+
+    const player = game.players.find(p => p.id === playerId);
+    if (!player || !player.team) {
+      return null; // Player must be on a team to be spymaster
+    }
+
+    const teamSpymasterField = player.team === 'red' ? 'redSpymaster' : 'blueSpymaster';
+    const currentSpymaster = game[teamSpymasterField];
+
+    let updatedGame: GameState;
+
+    if (currentSpymaster === playerId) {
+      // Player is already spymaster, demote to operative
+      updatedGame = {
+        ...game,
+        [teamSpymasterField]: null,
+        players: game.players.map(p =>
+          p.id === playerId ? { ...p, role: 'operative' } : p
+        ),
+      };
+    } else {
+      // Promote player to spymaster, demote previous spymaster if exists
+      updatedGame = {
+        ...game,
+        [teamSpymasterField]: playerId,
+        players: game.players.map(p => {
+          if (p.id === playerId) {
+            return { ...p, role: 'spymaster' };
+          } else if (p.id === currentSpymaster) {
+            return { ...p, role: 'operative' };
+          }
+          return p;
+        }),
+      };
+    }
+
+    this.games.set(gameId, updatedGame);
+    return updatedGame;
+  }
+
   // Cleanup old games (older than 24 hours)
   cleanupOldGames(): void {
     const now = Date.now();
@@ -249,7 +295,12 @@ class GameManager {
 
     for (const [gameId, game] of this.games.entries()) {
       if (now - game.createdAt > maxAge) {
+        // Save to ended games before deleting
+        saveEndedGame(game).catch(error => {
+          console.error(`Failed to save ended game ${gameId}:`, error);
+        });
         this.games.delete(gameId);
+        console.log(`[GameManager] Cleaned up old game: ${gameId}`);
       }
     }
   }
