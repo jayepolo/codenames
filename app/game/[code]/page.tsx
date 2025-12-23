@@ -44,6 +44,9 @@ export default function GamePage() {
   const [newName, setNewName] = useState("");
   const userMenuRef = useRef<HTMLDivElement>(null);
 
+  // Help modal state
+  const [isHelpModalOpen, setIsHelpModalOpen] = useState(false);
+
   // Session scoring
   const [sessionScore, setSessionScore] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -667,6 +670,12 @@ export default function GamePage() {
             </div>
             <div className="flex items-center gap-4">
               <button
+                onClick={() => setIsHelpModalOpen(true)}
+                className="border-2 border-white bg-transparent text-white hover:bg-white hover:text-gray-900 px-8 py-3 rounded-xl font-bold smooth-transition"
+              >
+                Help
+              </button>
+              <button
                 onClick={copyGameLink}
                 className="border-2 border-white bg-transparent text-white hover:bg-white hover:text-gray-900 px-8 py-3 rounded-xl font-bold smooth-transition"
               >
@@ -1226,6 +1235,83 @@ export default function GamePage() {
                 className="flex-1 bg-gray-700 hover:bg-gray-600 text-white font-bold py-3 px-6 rounded-xl transition-all duration-200"
               >
                 Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Help Modal */}
+      {isHelpModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4" onClick={() => setIsHelpModalOpen(false)}>
+          <div className="bg-[#0d1b2e] rounded-2xl p-8 border-2 border-gray-600 max-w-3xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-4xl font-black text-white">How to Play Codenames</h2>
+              <button
+                onClick={() => setIsHelpModalOpen(false)}
+                className="text-gray-400 hover:text-white transition-colors"
+              >
+                <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="space-y-6 text-gray-200">
+              {/* Setup Section */}
+              <div>
+                <h3 className="text-2xl font-bold text-white mb-3">Setup</h3>
+                <ul className="space-y-2 list-disc list-inside">
+                  <li><strong className="text-blue-300">Form Teams:</strong> Players divide into two teams of at least two people each.</li>
+                  <li><strong className="text-blue-300">Assign Roles:</strong> Each team chooses one Spymaster; the rest are Field Operatives.</li>
+                  <li><strong className="text-blue-300">Spymaster View:</strong> The Spymasters&apos; screens display a key, which secretly shows which words are Red, Blue, Neutral (Bystander), or the Assassin (Black - avoid at all costs!).</li>
+                  <li><strong className="text-blue-300">Starting Team:</strong> The team with 9 cards to find goes first.</li>
+                </ul>
+              </div>
+
+              {/* How to Play Section */}
+              <div>
+                <h3 className="text-2xl font-bold text-white mb-3">How to Play</h3>
+                <p className="mb-3">Teams alternate turns, starting with the first team. A turn consists of two phases:</p>
+
+                {/* Clue Phase */}
+                <div className="ml-4 mb-4">
+                  <h4 className="text-xl font-bold text-red-300 mb-2">1. The Clue Phase (Spymaster)</h4>
+                  <p className="mb-2">The Spymaster gives a clue consisting of exactly one word and one number (e.g., &quot;Nature, 2&quot;).</p>
+                  <ul className="space-y-1 list-disc list-inside ml-4">
+                    <li><strong className="text-blue-300">The Clue:</strong> Should relate to as many of your team&apos;s words as possible.</li>
+                    <li><strong className="text-blue-300">The Number:</strong> Indicates how many words on the board the clue relates to.</li>
+                    <li><strong className="text-blue-300">Illegal Clues:</strong> You cannot use any part of a word currently visible on the board.</li>
+                  </ul>
+                </div>
+
+                {/* Guessing Phase */}
+                <div className="ml-4">
+                  <h4 className="text-xl font-bold text-red-300 mb-2">2. The Guessing Phase (Operatives)</h4>
+                  <p className="mb-2">Operatives discuss and then touch a card to guess it.</p>
+                  <ul className="space-y-1 list-disc list-inside ml-4">
+                    <li><strong className="text-blue-300">Correct Guess:</strong> If the word belongs to your team, the Spymaster covers it with your color. You may then choose to make another guess.</li>
+                    <li><strong className="text-blue-300">Innocent Bystander:</strong> If the word is tan, the Spymaster covers it with a bystander tile and your turn ends immediately.</li>
+                    <li><strong className="text-blue-300">Opposing Team&apos;s Agent:</strong> If the word belongs to the other team, they get a tile on that word and your turn ends immediately.</li>
+                    <li><strong className="text-blue-300">The Assassin:</strong> If you pick the assassin word (black square), your team loses immediately.</li>
+                    <li><strong className="text-blue-300">Number of Guesses:</strong> You must make at least one guess. You can make up to N+1 guesses, where N is the number the Spymaster gave.</li>
+                  </ul>
+                </div>
+              </div>
+
+              {/* Winning the Game Section */}
+              <div>
+                <h3 className="text-2xl font-bold text-white mb-3">Winning the Game</h3>
+                <p>The first team to identify all their agents wins. The game also ends if a team touches the assassin, resulting in an immediate loss for them and a win for the other team.</p>
+              </div>
+            </div>
+
+            <div className="mt-8 flex justify-center">
+              <button
+                onClick={() => setIsHelpModalOpen(false)}
+                className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 text-white font-bold py-3 px-8 rounded-xl transition-all duration-200 transform hover:scale-105"
+              >
+                Got It!
               </button>
             </div>
           </div>
