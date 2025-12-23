@@ -15,10 +15,160 @@ const port = parseInt(process.env.PORT || "3000", 10);
 const app = next({ dev, hostname, port });
 const handle = app.getRequestHandler();
 
+// Admin auth helper functions
+const ADMIN_SESSION_COOKIE = 'admin_session';
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'changeme123';
+const SESSION_SECRET = 'admin-session-secret-' + (process.env.NODE_ENV || 'dev');
+
+function hashPassword(password: string): string {
+  return Buffer.from(`${SESSION_SECRET}:${password}`).toString('base64');
+}
+
+function parseCookies(cookieHeader: string | undefined): Record<string, string> {
+  const cookies: Record<string, string> = {};
+  if (!cookieHeader) return cookies;
+
+  cookieHeader.split(';').forEach(cookie => {
+    const [name, ...rest] = cookie.split('=');
+    cookies[name.trim()] = rest.join('=').trim();
+  });
+
+  return cookies;
+}
+
+function isAdminAuthenticatedSync(req: any): boolean {
+  const cookies = parseCookies(req.headers.cookie);
+  const sessionToken = cookies[ADMIN_SESSION_COOKIE];
+
+  if (!sessionToken) return false;
+
+  const expectedToken = hashPassword(ADMIN_PASSWORD);
+  return sessionToken === expectedToken;
+}
+
 app.prepare().then(() => {
   const httpServer = createServer(async (req, res) => {
     try {
       const parsedUrl = parse(req.url!, true);
+
+      // Intercept admin API routes to serve directly from gameManager
+      if (req.url?.startsWith('/api/admin/')) {
+        // Check authentication
+        if (!isAdminAuthenticatedSync(req)) {
+          res.statusCode = 401;
+          res.setHeader('Content-Type', 'application/json');
+          res.end(JSON.stringify({ error: 'Unauthorized' }));
+          return;
+        }
+
+        // Handle /api/admin/games
+        if (req.url === '/api/admin/games' && req.method === 'GET') {
+          const allGames = gameManager.getAllGames();
+
+          // Transform games data for admin view
+          const gamesData = allGames.map(game => ({
+            code: game.code,
+            players: game.players.map(p => ({
+              id: p.id,
+              name: p.name,
+              team: p.team,
+              role: p.role,
+            })),
+            status: game.status,
+            currentTurn: game.currentTurn,
+            cardsRevealed: game.cards.filter(c => c.revealed).length,
+            totalCards: game.cards.length,
+            createdAt: game.createdAt || new Date().toISOString(),
+          }));
+
+          res.statusCode = 200;
+          res.setHeader('Content-Type', 'application/json');
+          res.end(JSON.stringify({ games: gamesData }));
+          return;
+        }
+
+        // Handle /api/admin/game/[code]
+        const gameCodeMatch = req.url.match(/^\/api\/admin\/game\/([^\/\?]+)/);
+        if (gameCodeMatch && req.method === 'GET') {
+          const code = gameCodeMatch[1];
+          const game = gameManager.getGame(code);
+
+          if (!game) {
+            res.statusCode = 404;
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify({ error: 'Game not found' }));
+            return;
+          }
+
+          res.statusCode = 200;
+          res.setHeader('Content-Type', 'application/json');
+          res.end(JSON.stringify({ game }));
+          return;
+        }
+
+        // Handle /api/admin/jitsi
+        if (req.url === '/api/admin/jitsi' && req.method === 'GET') {
+          const JITSI_METRICS_URL = process.env.JITSI_METRICS_URL || 'http://localhost:8080';
+
+          try {
+            const response = await fetch(`${JITSI_METRICS_URL}/debug`, {
+              headers: {
+                'Accept': 'application/json',
+              },
+            });
+
+            if (!response.ok) {
+              throw new Error(`Jitsi API returned ${response.status}`);
+            }
+
+            const data = await response.json();
+
+            // Transform Jitsi data for easier consumption
+            const conferences = data.conferences || {};
+            const conferenceList = Object.entries(conferences).map(([id, conf]: [string, any]) => ({
+              id,
+              name: (conf as any).name,
+              meetingId: (conf as any).meeting_id,
+              participantCount: Object.keys((conf as any).endpoints || {}).length,
+              participants: Object.entries((conf as any).endpoints || {}).map(([epId, name]) => ({
+                id: epId,
+                name,
+              })),
+              rtcstatsEnabled: (conf as any).rtcstatsEnabled,
+            }));
+
+            res.statusCode = 200;
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify({
+              status: data.shutdownState,
+              healthy: data.health?.success || false,
+              stress: parseFloat(data['load-management']?.stress || '0'),
+              overloaded: data['load-management']?.state !== 'NOT_OVERLOADED',
+              jitter: data.overall_bridge_jitter || 0,
+              drain: data.drain || false,
+              timestamp: data.time,
+              conferences: conferenceList,
+              conferenceCount: conferenceList.length,
+              totalParticipants: conferenceList.reduce((sum: number, conf: any) => sum + conf.participantCount, 0),
+            }));
+            return;
+          } catch (error) {
+            console.error('Error fetching Jitsi metrics:', error);
+            res.statusCode = 200;
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify({
+              error: 'Failed to fetch Jitsi metrics',
+              status: 'UNKNOWN',
+              healthy: false,
+              conferences: [],
+              conferenceCount: 0,
+              totalParticipants: 0,
+            }));
+            return;
+          }
+        }
+      }
+
       await handle(req, res, parsedUrl);
     } catch (err) {
       console.error("Error occurred handling", req.url, err);
