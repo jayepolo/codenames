@@ -52,7 +52,10 @@ app.prepare().then(() => {
       const parsedUrl = parse(req.url!, true);
 
       // Intercept admin API routes to serve directly from gameManager
-      if (req.url?.startsWith('/api/admin/')) {
+      // BUT exclude /login and /logout which need to be handled by Next.js
+      if (req.url?.startsWith('/api/admin/') &&
+          !req.url.includes('/login') &&
+          !req.url.includes('/logout')) {
         // Check authentication
         if (!isAdminAuthenticatedSync(req)) {
           res.statusCode = 401;
