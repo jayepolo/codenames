@@ -67,18 +67,18 @@ app.prepare().then(() => {
 
           // Transform games data for admin view
           const gamesData = allGames.map(game => ({
-            code: game.code,
+            code: game.id,
             players: game.players.map(p => ({
               id: p.id,
               name: p.name,
               team: p.team,
               role: p.role,
             })),
-            status: game.status,
-            currentTurn: game.currentTurn,
+            status: game.phase,
+            currentTeam: game.currentTeam,
             cardsRevealed: game.cards.filter(c => c.revealed).length,
             totalCards: game.cards.length,
-            createdAt: game.createdAt || new Date().toISOString(),
+            createdAt: new Date(game.createdAt).toISOString(),
           }));
 
           res.statusCode = 200;
