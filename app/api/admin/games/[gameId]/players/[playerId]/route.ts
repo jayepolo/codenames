@@ -19,7 +19,7 @@ export async function PATCH(
 
   try {
     const body = await request.json();
-    const { name, toggleSpymaster } = body;
+    const { name, toggleSpymaster, team } = body;
 
     // Use the global gameManager instance from server.ts
     const gameManager = (global as any).gameManager;
@@ -52,6 +52,17 @@ export async function PATCH(
       if (!updatedGame) {
         return NextResponse.json(
           { error: 'Failed to update player name' },
+          { status: 500 }
+        );
+      }
+    }
+
+    // Update player team if provided
+    if (team !== undefined && (team === 'red' || team === 'blue' || team === null)) {
+      updatedGame = gameManager.joinTeam(gameId, playerId, team);
+      if (!updatedGame) {
+        return NextResponse.json(
+          { error: 'Failed to update player team' },
           { status: 500 }
         );
       }

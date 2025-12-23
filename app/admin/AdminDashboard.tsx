@@ -224,10 +224,58 @@ function PlayerRow({
     }
   };
 
+  const handleTeamClick = async () => {
+    if (gameStatus === 'ended' || isUpdating) return;
+
+    // Cycle through teams: null → red → blue → null
+    let newTeam: 'red' | 'blue' | null;
+    if (player.team === null) {
+      newTeam = 'red';
+    } else if (player.team === 'red') {
+      newTeam = 'blue';
+    } else {
+      newTeam = null;
+    }
+
+    setIsUpdating(true);
+    try {
+      const response = await fetch(`/api/admin/games/${gameId}/players/${player.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ team: newTeam }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update team');
+      }
+
+      // Success - team will be updated via game state refresh
+    } catch (error) {
+      console.error('Error updating team:', error);
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
   return (
     <tr className="text-white text-sm hover:bg-slate-700/30">
       <td className="px-4 py-3">
-        <span className="text-lg">{teamIndicator}</span>
+        <button
+          onClick={handleTeamClick}
+          disabled={isUpdating || gameStatus === 'ended'}
+          className={`text-lg ${
+            gameStatus === 'active' && !isUpdating
+              ? 'cursor-pointer hover:scale-125 transition-transform'
+              : 'cursor-not-allowed opacity-70'
+          }`}
+          title={
+            gameStatus === 'active'
+              ? 'Click to cycle team: Unassigned → Red → Blue → Unassigned'
+              : 'Cannot change team for ended games'
+          }
+        >
+          {teamIndicator}
+        </button>
       </td>
       <td className="px-4 py-3">
         {isEditing ? (
