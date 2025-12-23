@@ -20,6 +20,7 @@ export default function AdminLoginPage() {
         headers: {
           'Content-Type': 'application/json',
         },
+        credentials: 'include',
         body: JSON.stringify({ password }),
       });
 
@@ -31,9 +32,8 @@ export default function AdminLoginPage() {
         return;
       }
 
-      // Redirect to admin dashboard
-      router.push('/admin');
-      router.refresh();
+      // Redirect to admin dashboard with full page reload to ensure cookies are sent
+      window.location.href = '/admin';
     } catch (err) {
       setError('An error occurred. Please try again.');
       setLoading(false);
