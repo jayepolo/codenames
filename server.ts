@@ -5,6 +5,9 @@ import { Server as SocketIOServer } from "socket.io";
 import { gameManager } from "./lib/gameManager";
 import { Player } from "./types/game";
 
+// Make gameManager globally accessible for API routes
+(global as any).gameManager = gameManager;
+
 const dev = process.env.NODE_ENV !== "production";
 const hostname = "localhost";
 const port = parseInt(process.env.PORT || "3000", 10);

@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
 import { isAdminAuthenticated } from '@/lib/adminAuth';
-import { gameManager } from '@/lib/gameManager';
 
 export async function GET() {
   // Check authentication
@@ -13,6 +12,12 @@ export async function GET() {
   }
 
   try {
+    // Use the global gameManager instance from server.ts
+    const gameManager = (global as any).gameManager;
+    if (!gameManager) {
+      throw new Error('gameManager not available');
+    }
+
     const allGames = gameManager.getAllGames();
 
     // Transform games data for admin view

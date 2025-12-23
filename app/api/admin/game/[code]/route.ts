@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { isAdminAuthenticated } from '@/lib/adminAuth';
-import { gameManager } from '@/lib/gameManager';
 
 export async function GET(
   request: NextRequest,
@@ -18,6 +17,12 @@ export async function GET(
   const { code } = await params;
 
   try {
+    // Use the global gameManager instance from server.ts
+    const gameManager = (global as any).gameManager;
+    if (!gameManager) {
+      throw new Error('gameManager not available');
+    }
+
     const game = gameManager.getGame(code);
 
     if (!game) {
